@@ -108,7 +108,6 @@ export const createProfileAPI = (): ProfileAPI => ({
     signal?: AbortSignal
   ): Promise<IPCResult<DiscoverModelsResult>> => {
     console.log('[preload/profile-api] discoverModels START');
-    console.log('[preload/profile-api] baseUrl, apiKey:', baseUrl, apiKey?.slice(-4));
 
     const requestId = ++discoverModelsRequestId;
     console.log('[preload/profile-api] Request ID:', requestId);

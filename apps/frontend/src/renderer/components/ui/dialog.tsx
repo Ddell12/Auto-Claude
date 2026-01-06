@@ -112,18 +112,6 @@ const DialogDescription = React.forwardRef<
 ));
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
-const DialogScrollArea = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn('flex-1 overflow-y-auto overflow-x-hidden px-1 -mx-1', className)}
-    {...props}
-  />
-));
-DialogScrollArea.displayName = 'DialogScrollArea';
-
 export {
   Dialog,
   DialogPortal,
@@ -135,5 +123,4 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-  DialogScrollArea,
 };

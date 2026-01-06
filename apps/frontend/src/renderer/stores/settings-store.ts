@@ -253,9 +253,19 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   discoverModels: async (baseUrl: string, apiKey: string, signal?: AbortSignal): Promise<ModelInfo[] | null> => {
-    console.log('[settings-store] discoverModels called with:', { baseUrl, apiKey: `${apiKey.slice(-4)}` });
-    // Generate cache key from baseUrl and apiKey (last 4 chars)
-    const cacheKey = `${baseUrl}::${apiKey.slice(-4)}`;
+    // Simple string hash function for cache key generation
+    const hashString = (str: string): string => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash.toString(36); // Convert to base-36 string
+    };
+
+    // Generate cache key from baseUrl and hashed apiKey (secure, no fragments exposed)
+    const cacheKey = `${baseUrl}::${hashString(apiKey)}`;
 
     // Check cache first
     const state = useSettingsStore.getState();
