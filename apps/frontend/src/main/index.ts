@@ -175,7 +175,9 @@ function createWindow(): void {
     icon: getIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
-      sandbox: false,
+      // Enable sandbox for defense-in-depth security: restricts renderer process capabilities
+      // and prevents compromised renderers (e.g., via XSS) from escalating to main process access
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false // Prevent terminal lag when window loses focus
