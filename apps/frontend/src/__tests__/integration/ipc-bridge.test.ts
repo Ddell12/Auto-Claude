@@ -49,6 +49,16 @@ describe('IPC Bridge Integration', () => {
       );
     });
 
+    it('should expose DEBUG flag via contextBridge', async () => {
+      // Import preload script (this runs the module)
+      await import('../../preload/index');
+
+      expect(mockContextBridge.exposeInMainWorld).toHaveBeenCalledWith(
+        'DEBUG',
+        expect.any(Boolean)
+      );
+    });
+
     describe('Project operations', () => {
       let electronAPI: Record<string, unknown>;
 
