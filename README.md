@@ -155,11 +155,17 @@ For Linux-specific builds (Flatpak, AppImage), see [guides/linux.md](guides/linu
 
 ## Security
 
-Auto Claude uses a three-layer security model:
+Auto Claude uses a multi-layer defense-in-depth security model:
 
+**Backend Security:**
 1. **OS Sandbox** - Bash commands run in isolation
 2. **Filesystem Restrictions** - Operations limited to project directory
 3. **Dynamic Command Allowlist** - Only approved commands based on detected project stack
+
+**Frontend Security:**
+- **Electron Renderer Sandbox** - Enabled by default to prevent privilege escalation attacks
+- **Context Isolation** - Renderer processes isolated from Node.js APIs
+- **Secure IPC** - All renderer-to-main communication through secure contextBridge
 
 All releases are:
 - Scanned with VirusTotal before publishing

@@ -33,6 +33,7 @@ autonomous-coding/
 
 **Frontend (Electron Desktop App):**
 - Built with Electron, React, TypeScript
+- Renderer process sandbox enabled for enhanced security (prevents privilege escalation)
 - AI agents can perform E2E testing using the Electron MCP server
 - When bug fixing or implementing features, use the Electron MCP server for automated testing
 - See "End-to-End Testing" section below for details
@@ -267,12 +268,21 @@ git log --oneline upstream/develop..HEAD
 
 ### Security Model
 
-Three-layer defense:
+Multi-layer defense-in-depth approach:
+
+**Backend Security:**
 1. **OS Sandbox** - Bash command isolation
 2. **Filesystem Permissions** - Operations restricted to project directory
 3. **Command Allowlist** - Dynamic allowlist from project analysis (security.py + project_analyzer.py)
 
 Security profile cached in `.auto-claude-security.json`.
+
+**Frontend Security (Electron):**
+- **Renderer Process Sandbox** - Enabled by default (`sandbox: true`)
+  - Restricts renderer process capabilities to prevent privilege escalation
+  - Prevents compromised renderers (e.g., via XSS) from accessing main process
+  - Works in conjunction with `contextIsolation: true` and `nodeIntegration: false`
+  - All renderer-to-main communication goes through secure IPC channels via contextBridge
 
 ### Claude Agent SDK Integration
 
