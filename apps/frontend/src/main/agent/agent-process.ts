@@ -387,6 +387,12 @@ export class AgentProcessManager {
    * Load environment variables from auto-claude .env file
    */
   loadAutoBuildEnv(): Record<string, string> {
+    // Skip loading backend .env when app is packaged (read-only bundle)
+    // All necessary config is in settings.json and project-specific .env files
+    if (app.isPackaged) {
+      return {};
+    }
+
     const autoBuildSource = this.getAutoBuildSourcePath();
     if (!autoBuildSource) {
       return {};

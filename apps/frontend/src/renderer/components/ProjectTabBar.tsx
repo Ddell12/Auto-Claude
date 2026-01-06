@@ -112,6 +112,9 @@ export function ProjectTabBar({
       </div>
 
       <div className="flex items-center gap-2 px-2 py-1">
+        <div className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-md">
+          LOCAL DEV
+        </div>
         <UsageIndicator />
         <Button
           variant="ghost"

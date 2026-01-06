@@ -42,6 +42,28 @@ export class PythonEnvManager extends EventEmitter {
   private static readonly VENV_CREATION_TIMEOUT_MS = 120000; // 2 minutes timeout for venv creation
 
   /**
+   * Reliably detect if we're running in a packaged app environment.
+   * This covers cases where app.isPackaged might be false but we're actually
+   * running from a read-only bundle (e.g., macOS AppTranslocation).
+   */
+  private isPackagedApp(): boolean {
+    // Check standard Electron packaged flag
+    if (app.isPackaged) {
+      return true;
+    }
+
+    // Check if we're in an app bundle or read-only resources path
+    // This catches macOS AppTranslocation and other edge cases
+    const appPath = app.getAppPath();
+    return (
+      appPath.includes('.app/Contents/Resources') ||
+      appPath.includes('AppTranslocation') ||
+      process.resourcesPath.includes('.app/Contents/Resources') ||
+      process.resourcesPath.includes('AppTranslocation')
+    );
+  }
+
+  /**
    * Get the path where the venv should be created.
    * For packaged apps, this is in userData to avoid read-only filesystem issues.
    * For development, this is inside the source directory.
@@ -49,9 +71,17 @@ export class PythonEnvManager extends EventEmitter {
   private getVenvBasePath(): string | null {
     if (!this.autoBuildSourcePath) return null;
 
-    // For packaged apps, put venv in userData (writable location)
-    // This fixes Linux AppImage where resources are read-only
-    if (app.isPackaged) {
+    // Check if source is in app bundle or resources path (read-only locations)
+    // This covers: macOS .app bundles, AppTranslocation, AppImages, etc.
+    const isInAppBundle =
+      this.autoBuildSourcePath.includes('.app/Contents/Resources') ||
+      this.autoBuildSourcePath.includes('AppTranslocation') ||
+      this.autoBuildSourcePath.includes(process.resourcesPath) ||
+      this.isPackagedApp();
+
+    // For packaged apps or app bundles, put venv in userData (writable location)
+    // This fixes macOS AppTranslocation and Linux AppImage where resources are read-only
+    if (isInAppBundle) {
       return path.join(app.getPath('userData'), 'python-venv');
     }
 
@@ -96,7 +126,7 @@ export class PythonEnvManager extends EventEmitter {
    * These are pre-installed during the build process.
    */
   private getBundledSitePackagesPath(): string | null {
-    if (!app.isPackaged) {
+    if (!this.isPackagedApp()) {
       return null;
     }
 
@@ -222,8 +252,7 @@ if sys.version_info >= (3, 12):
 
     const systemPython = this.findSystemPython();
     if (!systemPython) {
-      const isPackaged = app.isPackaged;
-      const errorMsg = isPackaged
+      const errorMsg = this.isPackagedApp()
         ? 'Python not found. The bundled Python may be corrupted.\n\n' +
           'Please try reinstalling the application, or install Python 3.10+ manually:\n' +
           'https://www.python.org/downloads/'
@@ -457,7 +486,7 @@ if sys.version_info >= (3, 12):
 
     try {
       // For packaged apps, try to use bundled packages first (no pip install needed!)
-      if (app.isPackaged && this.hasBundledPackages()) {
+      if (this.isPackagedApp() && this.hasBundledPackages()) {
         console.warn('[PythonEnvManager] Using bundled Python packages (no pip install needed)');
 
         const bundledPython = getBundledPythonPath();
