@@ -30,6 +30,8 @@
 
 ### 🛠️ Improvements
 
+- Enabled Electron sandbox for renderer process to strengthen security boundary and prevent renderer compromise from escalating to main process access
+
 - Improved terminal experience with persistent state when switching projects
 
 - Enhanced PR review with structured outputs and fork support
