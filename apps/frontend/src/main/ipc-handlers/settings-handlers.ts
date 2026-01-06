@@ -86,6 +86,39 @@ const detectAutoBuildSourcePath = (): string | null => {
 };
 
 /**
+ * Get the correct .env file path for saving user configuration.
+ * This is separate from the backend code location - we NEVER write
+ * to bundled resources, only to writable user directories.
+ */
+const getWritableEnvPath = (): string | null => {
+  if (!app.isPackaged) {
+    // Development mode: Use the actual project backend directory
+    // This should be apps/backend/.env in the repo root
+    const projectBackendPaths = [
+      path.resolve(process.cwd(), 'apps', 'backend'),
+      path.resolve(__dirname, '..', '..', '..', 'backend')
+    ];
+
+    for (const backendPath of projectBackendPaths) {
+      const markerPath = path.join(backendPath, 'runners', 'spec_runner.py');
+      if (existsSync(backendPath) && existsSync(markerPath)) {
+        return path.join(backendPath, '.env');
+      }
+    }
+
+    console.warn('[getWritableEnvPath] Could not find project backend directory in development mode');
+    return null;
+  } else {
+    // Production mode: ALWAYS use userData directory (never bundled resources)
+    const userDataBackendDir = path.join(app.getPath('userData'), 'backend');
+    if (!existsSync(userDataBackendDir)) {
+      mkdirSync(userDataBackendDir, { recursive: true });
+    }
+    return path.join(userDataBackendDir, '.env');
+  }
+};
+
+/**
  * Register all settings-related IPC handlers
  */
 export function registerSettingsHandlers(
@@ -533,33 +566,25 @@ export function registerSettingsHandlers(
     const settings = { ...DEFAULT_APP_SETTINGS, ...savedSettings };
 
     // Get autoBuildPath from settings or try to auto-detect
+    // This is for RUNNING backend code (can be bundled resources)
     let sourcePath: string | null = settings.autoBuildPath || null;
     if (!sourcePath) {
       sourcePath = detectAutoBuildSourcePath();
     }
 
-    if (!sourcePath) {
-      return { sourcePath: null, envPath: null, isProduction: !is.dev };
-    }
+    // Get writable .env path (separate from backend code location)
+    // This is for SAVING user configuration (never bundled resources)
+    const envPath = getWritableEnvPath();
 
-    // In production, use userData directory for .env since resources may be read-only
-    // In development, use the actual source path
-    let envPath: string;
-    if (is.dev) {
-      envPath = path.join(sourcePath, '.env');
-    } else {
-      // Production: store .env in userData/backend/.env
-      const userDataBackendDir = path.join(app.getPath('userData'), 'backend');
-      if (!existsSync(userDataBackendDir)) {
-        mkdirSync(userDataBackendDir, { recursive: true });
-      }
-      envPath = path.join(userDataBackendDir, '.env');
+    if (!sourcePath || !envPath) {
+      console.warn('[getSourceEnvPath] Missing paths:', { sourcePath, envPath });
+      return { sourcePath: null, envPath: null, isProduction: app.isPackaged };
     }
 
     return {
-      sourcePath,
-      envPath,
-      isProduction: !is.dev
+      sourcePath,  // Backend code location (for running Python)
+      envPath,     // Config file location (for saving .env)
+      isProduction: app.isPackaged
     };
   };
 
@@ -637,6 +662,22 @@ export function registerSettingsHandlers(
           };
         }
 
+        // SAFETY CHECK: Never write to app bundle or translocated paths
+        if (envPath.includes('AppTranslocation') ||
+            envPath.includes('.app/Contents/Resources')) {
+          console.error('[AUTOBUILD_SOURCE_ENV_UPDATE] Attempted to write to read-only path:', envPath);
+          return {
+            success: false,
+            error: 'Cannot write to app bundle. Please contact support if this persists.'
+          };
+        }
+
+        // Ensure parent directory exists
+        const envDir = path.dirname(envPath);
+        if (!existsSync(envDir)) {
+          mkdirSync(envDir, { recursive: true });
+        }
+
         // Read existing content or start fresh (avoiding TOCTOU race condition)
         let existingVars: Record<string, string> = {};
         try {
@@ -671,8 +712,11 @@ export function registerSettingsHandlers(
 
         writeFileSync(envPath, lines.join('\n'));
 
+        console.log('[AUTOBUILD_SOURCE_ENV_UPDATE] Saved .env to:', envPath);
+
         return { success: true };
       } catch (error) {
+        console.error('[AUTOBUILD_SOURCE_ENV_UPDATE] Error:', error);
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Failed to update source env'
